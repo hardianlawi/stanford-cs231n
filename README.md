@@ -1,2 +1,3 @@
-# CS231n-assignments-solutions
-The solution for CS231n CNN for Visual Recognition Assignments
+# CS231n Convolutional Neural Networks for Visual Recognition
+
+My solution for [CS231n](http://cs231n.stanford.edu/syllabus.html) assignments.
