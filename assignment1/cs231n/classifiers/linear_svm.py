@@ -62,7 +62,16 @@ def svm_loss_vectorized(W, X, y, reg):
     """
     Structured SVM loss function, vectorized implementation.
 
-    Inputs and outputs are the same as svm_loss_naive.
+    Inputs:
+    - W: A numpy array of shape (D, C) containing weights.
+    - X: A numpy array of shape (N, D) containing a minibatch of data.
+    - y: A numpy array of shape (N,) containing training labels; y[i] = c means
+      that X[i] has label c, where 0 <= c < C.
+    - reg: (float) regularization strength
+
+    Returns a tuple of:
+    - loss as single float
+    - gradient with respect to weights W; an array of same shape as W
     """
     loss = 0.0
     dW = np.zeros(W.shape)  # initialize the gradient as zero
@@ -74,8 +83,8 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     temp = X.dot(W)  # N x C
     margin = temp - temp[range(num_train), y][:, np.newaxis] + 1  # N x C
-    margin[range(num_train), y] = 0
-    loss = np.sum(np.maximum(0, margin)) / num_train + reg * np.sum(W * W)
+    margin[range(num_train), y] = 0.0
+    loss = np.sum(np.maximum(0.0, margin)) / num_train + reg * np.sum(W * W)
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
