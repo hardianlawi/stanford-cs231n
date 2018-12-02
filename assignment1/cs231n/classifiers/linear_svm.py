@@ -81,9 +81,17 @@ def svm_loss_vectorized(W, X, y, reg):
     # Implement a vectorized version of the structured SVM loss, storing the    #
     # result in loss.                                                           #
     #############################################################################
-    temp = X.dot(W)  # N x C
-    margin = temp - temp[range(num_train), y][:, np.newaxis] + 1  # N x C
+
+    # Prediction
+    preds = X.dot(W)  # N x C
+
+    # For every prediction, preds - preds_correct_class + delta
+    margin = preds - preds[range(num_train), y][:, np.newaxis] + 1  # N x C
+
+    # Only calculate for the misclassified case
     margin[range(num_train), y] = 0.0
+
+    # If the prediction distance is less than delta, then return 0
     loss = np.sum(np.maximum(0.0, margin)) / num_train + reg * np.sum(W * W)
     #############################################################################
     #                             END OF YOUR CODE                              #
