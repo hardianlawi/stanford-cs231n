@@ -1,10 +1,11 @@
 from __future__ import print_function
 
-from builtins import range
-from builtins import object
-import numpy as np
+from builtins import object, range
+
 import matplotlib.pyplot as plt
+import numpy as np
 from past.builtins import xrange
+
 
 class TwoLayerNet(object):
     """
@@ -38,10 +39,10 @@ class TwoLayerNet(object):
         - output_size: The number of classes C.
         """
         self.params = {}
-        self.params['W1'] = std * np.random.randn(input_size, hidden_size)
-        self.params['b1'] = np.zeros(hidden_size)
-        self.params['W2'] = std * np.random.randn(hidden_size, output_size)
-        self.params['b2'] = np.zeros(output_size)
+        self.params["W1"] = std * np.random.randn(input_size, hidden_size)
+        self.params["b1"] = np.zeros(hidden_size)
+        self.params["W2"] = std * np.random.randn(hidden_size, output_size)
+        self.params["b2"] = np.zeros(output_size)
 
     def loss(self, X, y=None, reg=0.0):
         """
@@ -67,8 +68,8 @@ class TwoLayerNet(object):
           with respect to the loss function; has the same keys as self.params.
         """
         # Unpack variables from the params dictionary
-        W1, b1 = self.params['W1'], self.params['b1']
-        W2, b2 = self.params['W2'], self.params['b2']
+        W1, b1 = self.params["W1"], self.params["b1"]
+        W2, b2 = self.params["W2"], self.params["b2"]
         N, D = X.shape
 
         # Compute the forward pass
@@ -80,7 +81,10 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h = X @ W1 + b1
+        mask = (h > 0).astype(np.float64)
+        h = h * mask
+        scores = h @ W2 + b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -98,7 +102,13 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        probs = scores - scores.max(axis=1, keepdims=True)  # for numerical stability
+        probs = np.exp(probs)
+        probs /= probs.sum(axis=1, keepdims=True)
+
+        loss = -np.log(probs[range(N), y]).mean() + reg * (
+            np.sum(W1 * W1) + np.sum(W2 * W2)
+        )
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,16 +121,34 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        df = probs
+        df[range(N), y] -= 1
+
+        grads["W2"] = h.T @ df / N + 2 * reg * W2
+        grads["b2"] = df.mean(axis=0)
+
+        dh = df @ W2.T
+        dh *= mask
+        grads["W1"] = X.T @ dh / N + 2 * reg * W1
+        grads["b1"] = dh.mean(axis=0)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return loss, grads
 
-    def train(self, X, y, X_val, y_val,
-              learning_rate=1e-3, learning_rate_decay=0.95,
-              reg=5e-6, num_iters=100,
-              batch_size=200, verbose=False):
+    def train(
+        self,
+        X,
+        y,
+        X_val,
+        y_val,
+        learning_rate=1e-3,
+        learning_rate_decay=0.95,
+        reg=5e-6,
+        num_iters=100,
+        batch_size=200,
+        verbose=False,
+    ):
         """
         Train this neural network using stochastic gradient descent.
 
@@ -156,7 +184,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            indices = np.random.choice(range(num_train), size=batch_size)
+            X_batch = X[indices, :]
+            y_batch = y[indices]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -172,12 +202,13 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            for k, weights in self.params.items():
+                self.params[k] = weights - learning_rate * grads[k]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             if verbose and it % 100 == 0:
-                print('iteration %d / %d: loss %f' % (it, num_iters, loss))
+                print("iteration %d / %d: loss %f" % (it, num_iters, loss))
 
             # Every epoch, check train and val accuracy and decay learning rate.
             if it % iterations_per_epoch == 0:
@@ -191,9 +222,9 @@ class TwoLayerNet(object):
                 learning_rate *= learning_rate_decay
 
         return {
-          'loss_history': loss_history,
-          'train_acc_history': train_acc_history,
-          'val_acc_history': val_acc_history,
+            "loss_history": loss_history,
+            "train_acc_history": train_acc_history,
+            "val_acc_history": val_acc_history,
         }
 
     def predict(self, X):
@@ -218,7 +249,11 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h = np.maximum(0, X @ self.params["W1"] + self.params["b1"])
+        f = h @ self.params["W2"] + self.params["b2"]
+        scores = np.exp(f - f.max(axis=1, keepdims=True))
+        scores /= scores.sum(axis=1, keepdims=True)
+        y_pred = np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
