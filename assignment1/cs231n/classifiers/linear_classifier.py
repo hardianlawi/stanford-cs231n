@@ -1,8 +1,11 @@
 from __future__ import print_function
 
+from builtins import range
+from builtins import object
 import numpy as np
 from cs231n.classifiers.linear_svm import *
 from cs231n.classifiers.softmax import *
+from past.builtins import xrange
 
 
 class LinearClassifier(object):
@@ -30,8 +33,7 @@ class LinearClassifier(object):
         A list containing the value of the loss function at each training iteration.
         """
         num_train, dim = X.shape
-        # assume y takes values 0...K-1 where K is number of classes
-        num_classes = np.max(y) + 1
+        num_classes = np.max(y) + 1 # assume y takes values 0...K-1 where K is number of classes
         if self.W is None:
             # lazily initialize W
             self.W = 0.001 * np.random.randn(dim, num_classes)
@@ -42,7 +44,8 @@ class LinearClassifier(object):
             X_batch = None
             y_batch = None
 
-            ##################################################################None#######
+            #########################################################################
+            # TODO:                                                                 #
             # Sample batch_size elements from the training data and their           #
             # corresponding labels to use in this round of gradient descent.        #
             # Store the data in X_batch and their corresponding labels in           #
@@ -52,12 +55,11 @@ class LinearClassifier(object):
             # Hint: Use np.random.choice to generate indices. Sampling with         #
             # replacement is faster than sampling without replacement.              #
             #########################################################################
-            indices = np.random.choice(range(num_train), size=batch_size)
-            X_batch = X[indices, :]
-            y_batch = y[indices]
-            #########################################################################
-            #                       END OF YOUR CODE                                #
-            #########################################################################
+            # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+
+            pass
+
+            # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             # evaluate loss and gradient
             loss, grad = self.loss(X_batch, y_batch, reg)
@@ -65,12 +67,14 @@ class LinearClassifier(object):
 
             # perform parameter update
             #########################################################################
+            # TODO:                                                                 #
             # Update the weights using the gradient and the learning rate.          #
             #########################################################################
-            self.W -= learning_rate * grad
-            #########################################################################
-            #                       END OF YOUR CODE                                #
-            #########################################################################
+            # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+
+            pass
+
+            # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             if verbose and it % 100 == 0:
                 print('iteration %d / %d: loss %f' % (it, num_iters, loss))
@@ -93,17 +97,19 @@ class LinearClassifier(object):
         """
         y_pred = np.zeros(X.shape[0])
         ###########################################################################
+        # TODO:                                                                   #
         # Implement this method. Store the predicted labels in y_pred.            #
         ###########################################################################
-        y_pred = np.argmax(X.dot(self.W), axis=1)
-        ###########################################################################
-        #                           END OF YOUR CODE                              #
-        ###########################################################################
+        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+
+        pass
+
+        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return y_pred
 
     def loss(self, X_batch, y_batch, reg):
         """
-        Compute the loss function and its derivative. 
+        Compute the loss function and its derivative.
         Subclasses will override this.
 
         Inputs:
