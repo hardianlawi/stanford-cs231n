@@ -1,5 +1,5 @@
-from builtins import range
-from builtins import object
+from builtins import object, range
+
 import numpy as np
 from past.builtins import xrange
 
@@ -46,9 +46,15 @@ class KNearestNeighbor(object):
         elif num_loops == 2:
             dists = self.compute_distances_two_loops(X)
         else:
-            raise ValueError('Invalid value %d for num_loops' % num_loops)
+            raise ValueError("Invalid value %d for num_loops" % num_loops)
 
         return self.predict_labels(dists, k=k)
+
+    def _euclid_norm(self, x, y):
+        diff_sqr = (x - y) ** 2
+        if len(diff_sqr.shape) > 1:
+            return diff_sqr.sum(axis=1) ** (1 / 2)
+        return diff_sqr.sum() ** (1 / 2)
 
     def compute_distances_two_loops(self, X):
         """
@@ -77,7 +83,7 @@ class KNearestNeighbor(object):
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-                pass
+                dists[i][j] = self._euclid_norm(X[i, :], self.X_train[j, :])
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -101,7 +107,7 @@ class KNearestNeighbor(object):
             #######################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            dists[i] = self._euclid_norm(X[i, :], self.X_train)
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -131,7 +137,11 @@ class KNearestNeighbor(object):
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        dists = np.sqrt(
+            -2 * X @ self.X_train.T
+            + np.sum(X ** 2, axis=1, keepdims=True)
+            + np.sum(self.X_train ** 2, axis=1, keepdims=True).T
+        )
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -164,7 +174,7 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            closest_y.extend(self.y_train[np.argsort(dists[i])[:k]].tolist())
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
             #########################################################################
@@ -176,7 +186,7 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            y_pred[i] = max(set(closest_y), key=closest_y.count)
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
