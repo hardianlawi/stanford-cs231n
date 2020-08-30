@@ -1,7 +1,9 @@
 from builtins import range
-import numpy as np
 from random import shuffle
+
+import numpy as np
 from past.builtins import xrange
+
 
 def svm_loss_naive(W, X, y, reg):
     """
@@ -21,7 +23,7 @@ def svm_loss_naive(W, X, y, reg):
     - loss as single float
     - gradient with respect to weights W; an array of same shape as W
     """
-    dW = np.zeros(W.shape) # initialize the gradient as zero
+    dW = np.zeros(W.shape)  # initialize the gradient as zero
 
     # compute the loss and the gradient
     num_classes = W.shape[1]
@@ -33,7 +35,7 @@ def svm_loss_naive(W, X, y, reg):
         for j in range(num_classes):
             if j == y[i]:
                 continue
-            margin = scores[j] - correct_class_score + 1 # note delta = 1
+            margin = scores[j] - correct_class_score + 1  # note delta = 1
             if margin > 0:
                 loss += margin
 
@@ -54,12 +56,19 @@ def svm_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = X.dot(W)
+    margin = scores - scores[range(num_train), y][:, np.newaxis] + 1
+    margin[range(num_train), y] = 0.0
+
+    mask = (margin > 0).astype(np.int64)
+    mask[range(num_train), y] = -mask.sum(axis=1)  # bcs score - correct_score
+
+    dW += X.T.dot(mask) / num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-    
-    return loss, dW
 
+    return loss, dW
 
 
 def svm_loss_vectorized(W, X, y, reg):
@@ -69,7 +78,9 @@ def svm_loss_vectorized(W, X, y, reg):
     Inputs and outputs are the same as svm_loss_naive.
     """
     loss = 0.0
-    dW = np.zeros(W.shape) # initialize the gradient as zero
+    dW = np.zeros(W.shape)  # initialize the gradient as zero
+
+    num_train = X.shape[0]
 
     #############################################################################
     # TODO:                                                                     #
@@ -78,7 +89,11 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = X.dot(W)
+    margin = scores - scores[range(num_train), y][:, np.newaxis] + 1
+    margin[range(num_train), y] = 0.0
+
+    loss = np.maximum(0.0, margin).sum() / num_train + reg * np.sum(W * W)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -93,7 +108,11 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    mask = (margin > 0).astype(np.int64)
+    mask[range(num_train), y] = -mask.sum(axis=1)  # bcs score - correct_score
+
+    dW += X.T.dot(mask) / num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

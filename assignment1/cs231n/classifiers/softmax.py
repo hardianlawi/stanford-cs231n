@@ -1,7 +1,9 @@
 from builtins import range
-import numpy as np
 from random import shuffle
+
+import numpy as np
 from past.builtins import xrange
+
 
 def softmax_loss_naive(W, X, y, reg):
     """
@@ -33,7 +35,23 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    for i in range(num_train):
+
+        scores = X[i].dot(W)  # N x C
+        scores -= np.max(scores)
+        scores = np.exp(scores)  # N x C
+        total_scores = np.sum(scores)
+        loss -= np.log(scores[y[i]] / total_scores)
+
+        for j in range(num_classes):
+            dW[:, j] += X[i] * scores[j] / total_scores
+            if j == y[i]:
+                dW[:, j] -= X[i]
+
+    loss /= num_train
+    loss += reg * np.sum(W * W)
+    dW /= num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -58,7 +76,21 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = X.dot(W)  # N x C
+    scores -= np.max(scores, axis=1, keepdims=True)
+    scores = np.exp(scores)  # N x C
+    total_scores = np.sum(scores, axis=1, keepdims=True)  # N x 1
+
+    # Loss
+    loss = -np.mean(np.log(scores[range(num_train), y] / total_scores))
+    loss += reg * np.sum(W * W)
+
+    # grad
+    dW = scores / total_scores  # N x C
+    dW[range(num_train), y] -= 1
+    dW = X.T.dot(dW)
+    dW /= num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

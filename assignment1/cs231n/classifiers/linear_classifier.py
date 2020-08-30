@@ -1,20 +1,28 @@
 from __future__ import print_function
 
-from builtins import range
-from builtins import object
+from builtins import object, range
+
 import numpy as np
+from past.builtins import xrange
+
 from cs231n.classifiers.linear_svm import *
 from cs231n.classifiers.softmax import *
-from past.builtins import xrange
 
 
 class LinearClassifier(object):
-
     def __init__(self):
         self.W = None
 
-    def train(self, X, y, learning_rate=1e-3, reg=1e-5, num_iters=100,
-              batch_size=200, verbose=False):
+    def train(
+        self,
+        X,
+        y,
+        learning_rate=1e-3,
+        reg=1e-5,
+        num_iters=100,
+        batch_size=200,
+        verbose=False,
+    ):
         """
         Train this linear classifier using stochastic gradient descent.
 
@@ -33,7 +41,9 @@ class LinearClassifier(object):
         A list containing the value of the loss function at each training iteration.
         """
         num_train, dim = X.shape
-        num_classes = np.max(y) + 1 # assume y takes values 0...K-1 where K is number of classes
+        num_classes = (
+            np.max(y) + 1
+        )  # assume y takes values 0...K-1 where K is number of classes
         if self.W is None:
             # lazily initialize W
             self.W = 0.001 * np.random.randn(dim, num_classes)
@@ -57,7 +67,12 @@ class LinearClassifier(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            indices = np.random.choice(
+                range(num_train),
+                size=batch_size,
+            )
+            X_batch = X[indices, :]
+            y_batch = y[indices]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -72,12 +87,12 @@ class LinearClassifier(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            self.W -= learning_rate * grad
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             if verbose and it % 100 == 0:
-                print('iteration %d / %d: loss %f' % (it, num_iters, loss))
+                print("iteration %d / %d: loss %f" % (it, num_iters, loss))
 
         return loss_history
 
@@ -102,7 +117,7 @@ class LinearClassifier(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        y_pred = np.argmax(X.dot(self.W), axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return y_pred
