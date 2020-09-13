@@ -1,15 +1,16 @@
-from __future__ import print_function, division
+from __future__ import division, print_function
+
 from future import standard_library
 
 standard_library.install_aliases()
-from builtins import range
-from builtins import object
-import os
-import pickle as pickle
+from builtins import range  # isort:skip
+from builtins import object  # isort:skip
+import os  # isort:skip
+import pickle as pickle  # isort:skip
 
-import numpy as np
+import numpy as np  # isort:skip
 
-from cs231n import optim
+from cs231n import optim  # isort:skip
 
 
 class Solver(object):

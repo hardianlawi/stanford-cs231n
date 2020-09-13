@@ -1,9 +1,9 @@
-from builtins import range
-from builtins import object
+from builtins import object, range
+
 import numpy as np
 
-from ..layers import *
 from ..layer_utils import *
+from ..layers import *
 
 
 class TwoLayerNet(object):
@@ -55,7 +55,15 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        self.params["W1"] = np.random.normal(
+            scale=weight_scale, size=(input_dim, hidden_dim)
+        )
+        self.params["b1"] = np.zeros(hidden_dim)
+
+        self.params["W2"] = np.random.normal(
+            scale=weight_scale, size=(hidden_dim, num_classes)
+        )
+        self.params["b2"] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -88,7 +96,11 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # (N, hidden_dim)
+        z1, z_cache1 = affine_forward(X, self.params["W1"], self.params["b1"])
+        h1, h_cache1 = relu_forward(z1)
+
+        scores, z_cache2 = affine_forward(h1, self.params["W2"], self.params["b2"])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -112,7 +124,21 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dl = softmax_loss(scores, y)
+        loss += (
+            self.reg
+            * ((self.params["W1"] ** 2).sum() + (self.params["W2"] ** 2).sum())
+            / 2
+        )
+
+        dX, dW2, db2 = affine_backward(dl, z_cache2)
+        grads["W2"] = dW2 + self.params["W2"]
+        grads["b2"] = db2
+
+        dX = relu_backward(dX, h_cache1)
+        _, dW1, db1 = affine_backward(dX, z_cache1)
+        grads["W1"] = dW1 + self.params["W1"]
+        grads["b1"] = db1
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
