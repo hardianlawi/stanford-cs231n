@@ -132,12 +132,12 @@ class TwoLayerNet(object):
         )
 
         dX, dW2, db2 = affine_backward(dl, z_cache2)
-        grads["W2"] = dW2 + self.params["W2"]
+        grads["W2"] = dW2 + self.reg * self.params["W2"]
         grads["b2"] = db2
 
         dX = relu_backward(dX, h_cache1)
         _, dW1, db1 = affine_backward(dX, z_cache1)
-        grads["W1"] = dW1 + self.params["W1"]
+        grads["W1"] = dW1 + self.reg * self.params["W1"]
         grads["b1"] = db1
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -218,7 +218,18 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        _inp_size = input_dim
+        for i, h in enumerate(hidden_dims, 1):
+            self.params[f"W{i}"] = np.random.normal(
+                scale=weight_scale, size=(_inp_size, h)
+            )
+            self.params[f"b{i}"] = np.zeros(h)
+            _inp_size = h
+
+        self.params[f"W{self.num_layers}"] = np.random.normal(
+            scale=weight_scale, size=(_inp_size, num_classes)
+        )
+        self.params[f"b{self.num_layers}"] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -280,7 +291,20 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        caches = []
+
+        x = X.reshape(X.shape[0], -1)
+        for i in range(1, self.num_layers):
+            W = self.params[f"W{i}"]
+            b = self.params[f"b{i}"]
+            x, affine_cache = affine_forward(x, W, b)
+            x, relu_cache = relu_forward(x)
+            caches.append(affine_cache)
+            caches.append(relu_cache)
+        W = self.params[f"W{self.num_layers}"]
+        b = self.params[f"b{self.num_layers}"]
+        scores, out_cache = affine_forward(x, W, b)
+        caches.append(out_cache)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -307,7 +331,25 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, d = softmax_loss(scores, y)
+
+        dx, dW, db = affine_backward(d, caches.pop())
+        W = self.params[f"W{self.num_layers}"]
+        grads[f"W{self.num_layers}"] = dW + self.reg * W
+        grads[f"b{self.num_layers}"] = db
+        loss += self.reg / 2 * (W ** 2).sum()
+
+        num = self.num_layers - 1
+        while len(caches):
+            relu_cache = caches.pop()
+            dx = relu_backward(dx, relu_cache)
+            affine_cache = caches.pop()
+            dx, dW, db = affine_backward(dx, affine_cache)
+            W = self.params[f"W{num}"]
+            grads[f"W{num}"] = dW + self.reg * W
+            grads[f"b{num}"] = db
+            loss += self.reg / 2 * (W ** 2).sum()
+            num -= 1
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

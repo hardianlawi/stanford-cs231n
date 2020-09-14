@@ -1,5 +1,6 @@
 import numpy as np
 
+
 """
 This file implements various first-order update rules that are commonly used
 for training neural networks. Each update rule accepts current weights and the
@@ -69,7 +70,8 @@ def sgd_momentum(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    v = config.get("momentum") * v - config.get("learning_rate") * dw
+    next_w = w + v
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -107,7 +109,17 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    grad_squared = config.get("cache")
+
+    grad_squared = (
+        config.get("decay_rate") * grad_squared
+        + (1 - config.get("decay_rate")) * dw * dw
+    )
+    next_w = w - config.get("learning_rate") * dw / (
+        np.sqrt(grad_squared) + config.get("epsilon")
+    )
+
+    config["cache"] = grad_squared
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -152,7 +164,24 @@ def adam(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    config["t"] += 1
+
+    first_moment = (
+        config.get("beta1") * config.get("m") + (1 - config.get("beta1")) * dw
+    )
+    second_moment = (
+        config.get("beta2") * config.get("v") + (1 - config.get("beta2")) * dw * dw
+    )
+
+    first_unbias = first_moment / (1 - config.get("beta1") ** config.get("t"))
+    second_unbias = second_moment / (1 - config.get("beta2") ** config.get("t"))
+
+    next_w = w - config.get("learning_rate") * first_unbias / (
+        np.sqrt(second_unbias) + config.get("epsilon")
+    )
+
+    config["m"] = first_moment
+    config["v"] = second_moment
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
