@@ -298,9 +298,12 @@ class FullyConnectedNet(object):
             W = self.params[f"W{i}"]
             b = self.params[f"b{i}"]
             x, affine_cache = affine_forward(x, W, b)
-            x, relu_cache = relu_forward(x)
             caches.append(affine_cache)
+            x, relu_cache = relu_forward(x)
             caches.append(relu_cache)
+            if self.use_dropout:
+                x, dropout_cache = dropout_forward(x, self.dropout_param)
+                caches.append(dropout_cache)
         W = self.params[f"W{self.num_layers}"]
         b = self.params[f"b{self.num_layers}"]
         scores, out_cache = affine_forward(x, W, b)
@@ -341,6 +344,9 @@ class FullyConnectedNet(object):
 
         num = self.num_layers - 1
         while len(caches):
+            if self.use_dropout:
+                dropout_cache = caches.pop()
+                dx = dropout_backward(dx, dropout_cache)
             relu_cache = caches.pop()
             dx = relu_backward(dx, relu_cache)
             affine_cache = caches.pop()
