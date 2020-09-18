@@ -3,6 +3,7 @@
 
 assignment1/cs231n/datasets/cifar-10-batches-py
 assignment2/cs231n/datasets/cifar-10-batches-py
+*im2col_cython*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
