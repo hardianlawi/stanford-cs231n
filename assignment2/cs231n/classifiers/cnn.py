@@ -1,9 +1,10 @@
 from builtins import object
+
 import numpy as np
 
-from ..layers import *
 from ..fast_layers import *
 from ..layer_utils import *
+from ..layers import *
 
 
 class ThreeLayerConvNet(object):
@@ -63,7 +64,32 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        conv_param = {"stride": 1, "pad": (filter_size - 1) // 2}
+        pool_param = {"pool_height": 2, "pool_width": 2, "stride": 2}
+        dummy = np.zeros((1,) + input_dim)  # To compute the shape
+
+        self.params["W1"] = np.random.normal(
+            scale=weight_scale,
+            size=(num_filters, input_dim[0], filter_size, filter_size),
+        )
+        self.params["b1"] = np.zeros(num_filters)
+
+        dummy, _ = conv_forward_fast(
+            dummy, self.params["W1"], self.params["b1"], conv_param
+        )
+        dummy, _ = relu_forward(dummy)
+        dummy, _ = max_pool_forward_fast(dummy, pool_param)
+
+        self._before_flatten_size = dummy.shape[1:]
+        self.params["W2"] = np.random.normal(
+            scale=weight_scale, size=(np.prod(self._before_flatten_size), hidden_dim)
+        )
+        self.params["b2"] = np.zeros(hidden_dim)
+
+        self.params["W3"] = np.random.normal(
+            scale=weight_scale, size=(hidden_dim, num_classes)
+        )
+        self.params["b3"] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -102,7 +128,22 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        caches = []
+
+        scores, cache = conv_forward_fast(X, W1, b1, conv_param)
+        caches.append(cache)
+        scores, cache = relu_forward(scores)
+        caches.append(cache)
+        scores, cache = max_pool_forward_fast(scores, pool_param)
+        caches.append(cache)
+
+        scores = scores.reshape(scores.shape[0], -1)
+        scores, cache = affine_forward(scores, W2, b2)
+        caches.append(cache)
+        scores, cache = relu_forward(scores)
+        caches.append(cache)
+        scores, cache = affine_forward(scores, W3, b3)
+        caches.append(cache)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -125,7 +166,19 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dx = softmax_loss(scores, y)
+        loss += self.reg / 2 * ((W1 * W1).sum() + (W2 * W2).sum() + (W3 * W3).sum())
+
+        dx, grads["W3"], grads["b3"] = affine_backward(dx, caches.pop())
+        grads["W3"] += self.reg * W3
+        dx = relu_backward(dx, caches.pop())
+        dx, grads["W2"], grads["b2"] = affine_backward(dx, caches.pop())
+        grads["W2"] += self.reg * W2
+        dx = dx.reshape(dx.shape[0], *self._before_flatten_size)
+        dx = max_pool_backward_fast(dx, caches.pop())
+        dx = relu_backward(dx, caches.pop())
+        dx, grads["W1"], grads["b1"] = conv_backward_fast(dx, caches.pop())
+        grads["W1"] += self.reg * W1
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
