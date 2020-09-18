@@ -544,33 +544,35 @@ def conv_forward_naive(x, w, b, conv_param):
     stride = conv_param.get("stride", 1)
     pad = conv_param.get("pad", 0)
 
-    F, C, HH, WW = w.shape
     N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    unrolled_w = np.moveaxis(w, 0, 3).reshape(-1, F)
 
-    xx = x.copy()
+    xp = x.copy()
     if pad != 0:
-        xx = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), constant_values=0)
+        xp = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), constant_values=0)
 
-    new_H = 1 + (H + 2 * pad - HH) // stride
-    new_W = 1 + (W + 2 * pad - WW) // stride
+    out_H = 1 + (H + 2 * pad - HH) // stride
+    out_W = 1 + (W + 2 * pad - WW) // stride
+    out = np.zeros((N, F, out_H, out_W), dtype=np.float64)
+    for i in range(out_H):
+        for j in range(out_W):
 
-    out = np.zeros((N, F, new_H, new_W), dtype=np.float32)
+            image_i = i * stride
+            image_j = j * stride
 
-    for i in range(new_H):
-        for j in range(new_W):
+            # shape of (N, C * HH * WW)
+            _inp = xp[:, :, image_i : image_i + HH, image_j : image_j + WW].reshape(
+                N, -1
+            )
 
-            # shape of (N, 1, C, HH, WW)
-            _inp = xx[
-                :, :, (i * stride) : (i * stride) + HH, (j * stride) : (j * stride) + WW
-            ][:, np.newaxis, :, :, :]
-
-            out[:, :, i, j] = (_inp * w).sum(axis=(2, 3, 4)) + b
+            out[:, :, i, j] = (_inp @ unrolled_w) + b.reshape(1, -1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    cache = (x, w, b, conv_param)
+    cache = (xp, w, b, conv_param)
     return out, cache
 
 
@@ -593,45 +595,38 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, w, b, conv_param = cache
+    xp, w, b, conv_param = cache
 
     F, C, HH, WW = w.shape
-    N, C, H, W = x.shape
+    N, C, H, W = xp.shape
 
     stride = conv_param.get("stride", 1)
     pad = conv_param.get("pad", 0)
 
-    new_H = 1 + (H + 2 * pad - HH) // stride
-    new_W = 1 + (W + 2 * pad - WW) // stride
+    new_H = 1 + (H - HH) // stride
+    new_W = 1 + (W - WW) // stride
 
-    print(H, W, HH, WW)
-    print(new_H, new_W, stride, pad)
-
-    dx = np.zeros_like(x, dtype=np.float32)
-    dw = np.zeros_like(w, dtype=np.float32)
-    db = np.zeros_like(b, dtype=np.float32)
-
-    if pad != 0:
-        xx = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), constant_values=0)
-        dx = np.pad(dx, ((0, 0), (0, 0), (pad, pad), (pad, pad)), constant_values=0)
+    dx = np.zeros_like(xp, dtype=np.float64)
+    dw = np.zeros_like(w, dtype=np.float64)
+    db = dout.sum(axis=(0, 2, 3))
 
     for i in range(new_H):
         for j in range(new_W):
 
-            # shape of (N, 1, C, HH, WW)
-            _inp = xx[
-                :, :, (i * stride) : (i * stride) + HH, (j * stride) : (j * stride) + WW
-            ][:, :, :, :]
-
+            # (N, F)
             _out = dout[:, :, i, j]
 
+            # (N, F, HH, WW)
             dx[
                 :, :, (i * stride) : (i * stride) + HH, (j * stride) : (j * stride) + WW
             ] += np.tensordot(_out, w, axes=1)
-            dw += (_out.sum(axis=1)[:, np.newaxis, np.newaxis, np.newaxis] * _inp).sum(
-                axis=0
-            )
-            db += _out.sum(axis=0)
+
+            # shape of (N, C, HH, WW)
+            _inp = xp[
+                :, :, (i * stride) : (i * stride) + HH, (j * stride) : (j * stride) + WW
+            ]
+
+            dw += np.tensordot(_out.T, _inp, axes=1)
 
     if pad != 0:
         dx = dx[:, :, pad:-pad, pad:-pad]
@@ -677,7 +672,7 @@ def max_pool_forward_naive(x, pool_param):
     new_H = 1 + (H - HH) // stride
     new_W = 1 + (W - WW) // stride
 
-    out = np.zeros((N, C, new_H, new_W), dtype=np.float32)
+    out = np.zeros((N, C, new_H, new_W))
 
     for i in range(new_H):
         for j in range(new_W):
@@ -714,7 +709,38 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, pool_param = cache
+    HH = pool_param.get("pool_height", 2)
+    WW = pool_param.get("pool_width", 2)
+    stride = pool_param.get("stride", 1)
+
+    N, C, H, W = x.shape
+    _, _, out_H, out_W = dout.shape
+
+    rows = np.tile(range(N), (C, 1)).T.ravel()
+    channels = np.tile(range(C), (N, 1)).ravel()
+
+    dx = np.zeros_like(x)
+    for i in range(out_H):
+        for j in range(out_W):
+
+            image_i = i * stride
+            image_j = j * stride
+
+            # shape of (N, C)
+            _inp = (
+                x[:, :, image_i : image_i + HH, image_j : image_j + WW]
+                .reshape(N, C, -1)
+                .argmax(axis=-1)
+            )
+
+            mask = np.zeros(_inp.shape + (HH * WW,))
+            mask[rows, channels, _inp.ravel()] = 1.0
+            mask = mask.reshape(N, C, HH, WW)
+
+            dx[:, :, image_i : image_i + HH, image_j : image_j + WW] += (
+                mask * dout[:, :, i, j][:, :, np.newaxis, np.newaxis]
+            )
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
