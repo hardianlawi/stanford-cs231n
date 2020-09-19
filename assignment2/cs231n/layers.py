@@ -877,7 +877,21 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+
+    xs = np.split(x, G, axis=1)
+    gammas = np.split(gamma, G)
+    betas = np.split(beta, G)
+
+    outs = []
+    cache = []
+    for group, g, b in zip(xs, gammas, betas):
+        flattened = np.moveaxis(group, 1, -1).reshape(N * H * W, C // G)
+        normalized, c = layernorm_forward(flattened, g, b, gn_param)
+        outs.append(np.moveaxis(normalized.reshape(N, H, W, C // G), -1, 1))
+        cache.append(c)
+
+    out = np.concatenate(outs, axis=1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -907,7 +921,22 @@ def spatial_groupnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = dout.shape
+    douts = np.split(dout, len(cache), axis=1)
+
+    dx, dgamma, dbeta = [], [], []
+    for d, c in zip(douts, cache):
+        dflattened = np.moveaxis(d, 1, -1).reshape(N * H * W, C // len(cache))
+        # dnormalized, dgamma, dbeta = batchnorm_backward_alt(dflattened, cache)
+        # dx = np.moveaxis(dnormalized.reshape(N, H, W, C), -1, 1)
+        d1, d2, d3 = layernorm_backward(dflattened, c)
+        dx.append(np.moveaxis(d1.reshape(N, H, W, C // len(cache)), -1, 1))
+        dgamma.append(d2)
+        dbeta.append(d3)
+
+    dx = np.concatenate(dx, axis=1)
+    dgamma = np.concatenate(dgamma)
+    dbeta = np.concatenate(dbeta)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
