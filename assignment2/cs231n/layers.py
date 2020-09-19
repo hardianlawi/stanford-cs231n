@@ -203,6 +203,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
         mean = x.mean(axis=0)
         var = x.var(axis=0)
+        sigma = np.sqrt(var + eps)
 
         if not layernorm:
             running_mean = momentum * running_mean + (1 - momentum) * mean
@@ -213,10 +214,15 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # scale = gamma / (np.sqrt(var + eps))
         # out = x * scale + shift
 
-        normalized = (x - mean) / np.sqrt(var + eps)
+        normalized = (x - mean) / sigma
+
+        # In the case of layernorm
+        # normalized shape: (D, N)
+        # gamma: (D, 1)
+        # beta: (D, 1)
         out = normalized * gamma + beta
 
-        cache = (x, gamma, mean, var, eps)
+        cache = (x, gamma, mean, sigma, layernorm)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -275,17 +281,15 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, gamma, mean, var, eps = cache
+    x, gamma, mean, sigma, layernorm = cache
     m = x.shape[0]
 
     dxhat = dout * gamma
-    dvar = -1 / 2 * ((var + eps) ** (-3 / 2)) * (dxhat * (x - mean)).sum(axis=0)
-    dmean = -1 / np.sqrt(var + eps) * dxhat.sum(axis=0) + dvar * -2 * (
-        x.mean(axis=0) - mean
-    )
-    dx = dxhat / np.sqrt(var + eps) + dvar * 2 * (x - mean) / m + dmean / m
-    dgamma = (dout * (x - mean) / np.sqrt(var + eps)).sum(axis=0)
-    dbeta = dout.sum(axis=0)
+    dvar = -1 / 2 * (sigma ** (-3)) * (dxhat * (x - mean)).sum(axis=0)
+    dmean = -1 / sigma * dxhat.sum(axis=0) + dvar * -2 * (x.mean(axis=0) - mean)
+    dx = dxhat / sigma + dvar * 2 * (x - mean) / m + dmean / m
+    dgamma = (dout * (x - mean) / sigma).sum(axis=int(layernorm))
+    dbeta = dout.sum(axis=int(layernorm))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -320,15 +324,14 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, gamma, mean, var, eps = cache
-    sigma = np.sqrt(var + eps)
+    x, gamma, mean, sigma, layernorm = cache
     y = (x - mean) / sigma
     m = x.shape[0]
 
     dxhat = dout * gamma
     dx = (dxhat - dxhat.sum(axis=0) / m - (dxhat * y).sum(axis=0) * y / m) / sigma
-    dgamma = (dout * y).sum(axis=0)
-    dbeta = dout.sum(axis=0)
+    dgamma = (dout * y).sum(axis=int(layernorm))
+    dbeta = dout.sum(axis=int(layernorm))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -361,7 +364,6 @@ def layernorm_forward(x, gamma, beta, ln_param):
     - cache: A tuple of values needed in the backward pass
     """
     out, cache = None, None
-    eps = ln_param.get("eps", 1e-5)
     ###########################################################################
     # TODO: Implement the training-time forward pass for layer norm.          #
     # Normalize the incoming data, and scale and  shift the normalized data   #
@@ -414,7 +416,8 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx, dgamma, dbeta = batchnorm_backward_alt(dout.T, cache)
+    dx = dx.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -798,44 +801,6 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     flattened = np.moveaxis(x, 1, -1).reshape(N * H * W, C)
     normalized, cache = batchnorm_forward(flattened, gamma, beta, bn_param)
     out = np.moveaxis(normalized.reshape(N, H, W, C), -1, 1)
-
-    # N, C, H, W = x.shape
-
-    # mode = bn_param["mode"]
-    # eps = bn_param.get("eps", 1e-5)
-    # momentum = bn_param.get("momentum", 0.9)
-    # running_mean = bn_param.get("running_mean", np.zeros(C, dtype=x.dtype))
-    # running_var = bn_param.get("running_var", np.zeros(C, dtype=x.dtype))
-
-    # if mode == "train":
-    #     mean = x.mean(axis=(0, 2, 3))
-    #     var = x.var(axis=(0, 2, 3))
-
-    #     running_mean = momentum * running_mean + (1 - momentum) * mean
-    #     running_var = momentum * running_var + (1 - momentum) * var
-
-    #     shift = beta - gamma * mean / (np.sqrt(var + eps))
-    #     scale = gamma / np.sqrt(var + eps)
-
-    #     shift = shift[np.newaxis, :, np.newaxis, np.newaxis]
-    #     scale = scale[np.newaxis, :, np.newaxis, np.newaxis]
-
-    #     out = x * scale + shift
-
-    #     cache = (x, gamma, beta, mean, var, eps)
-
-    # elif mode == "test":
-
-    #     shift = beta - gamma * running_mean / np.sqrt(running_var + eps)
-    #     scale = gamma / np.sqrt(running_var + eps)
-
-    #     shift = shift[np.newaxis, :, np.newaxis, np.newaxis]
-    #     scale = scale[np.newaxis, :, np.newaxis, np.newaxis]
-
-    #     out = x * scale + shift
-
-    # else:
-    #     raise ValueError('Invalid forward spatial batchnorm mode "%s"' % mode)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
