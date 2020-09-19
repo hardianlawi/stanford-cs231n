@@ -216,7 +216,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         normalized = (x - mean) / np.sqrt(var + eps)
         out = normalized * gamma + beta
 
-        cache = (x, gamma, beta, mean, var, eps)
+        cache = (x, gamma, mean, var, eps)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -275,7 +275,7 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, gamma, _, mean, var, eps = cache
+    x, gamma, mean, var, eps = cache
     m = x.shape[0]
 
     dxhat = dout * gamma
@@ -320,15 +320,14 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, gamma, _, mean, var, eps = cache
+    x, gamma, mean, var, eps = cache
     sigma = np.sqrt(var + eps)
+    y = (x - mean) / sigma
     m = x.shape[0]
 
     dxhat = dout * gamma
-    dy = (1 - 1 / m) / sigma + (x - mean) ** 2 / m / sigma ** 3
-    dx = dxhat * dy
-    # dx = dxhat * ((1 - 1 / m) / sigma - (x - mean) ** 2 / (m * (sigma ** 3)))
-    dgamma = (dout * (x - mean) / np.sqrt(var + eps)).sum(axis=0)
+    dx = (dxhat - dxhat.sum(axis=0) / m - (dxhat * y).sum(axis=0) * y / m) / sigma
+    dgamma = (dout * y).sum(axis=0)
     dbeta = dout.sum(axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -872,7 +871,7 @@ def spatial_batchnorm_backward(dout, cache):
 
     N, C, H, W = dout.shape
     dflattened = np.moveaxis(dout, 1, -1).reshape(N * H * W, C)
-    dnormalized, dgamma, dbeta = batchnorm_backward(dflattened, cache)
+    dnormalized, dgamma, dbeta = batchnorm_backward_alt(dflattened, cache)
     dx = np.moveaxis(dnormalized.reshape(N, H, W, C), -1, 1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
