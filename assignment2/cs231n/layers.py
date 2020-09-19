@@ -170,6 +170,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     mode = bn_param["mode"]
     eps = bn_param.get("eps", 1e-5)
     momentum = bn_param.get("momentum", 0.9)
+    layernorm = bn_param.get("layernorm", False)
 
     N, D = x.shape
     running_mean = bn_param.get("running_mean", np.zeros(D, dtype=x.dtype))
@@ -203,13 +204,17 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         mean = x.mean(axis=0)
         var = x.var(axis=0)
 
-        running_mean = momentum * mean + (1 - momentum) * running_mean
-        running_var = momentum * var + (1 - momentum) * running_var
+        if not layernorm:
+            running_mean = momentum * running_mean + (1 - momentum) * mean
+            running_var = momentum * running_var + (1 - momentum) * var
 
-        shift = beta - gamma * mean / (np.sqrt(var + eps))
-        scale = gamma / (np.sqrt(var + eps))
+        # From the paper
+        # shift = beta - gamma * mean / (np.sqrt(var + eps))
+        # scale = gamma / (np.sqrt(var + eps))
+        # out = x * scale + shift
 
-        out = x * scale + shift
+        normalized = (x - mean) / np.sqrt(var + eps)
+        out = normalized * gamma + beta
 
         cache = (x, gamma, beta, mean, var, eps)
 
@@ -236,9 +241,10 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     else:
         raise ValueError('Invalid forward batchnorm mode "%s"' % mode)
 
-    # Store the updated running means back into bn_param
-    bn_param["running_mean"] = running_mean
-    bn_param["running_var"] = running_var
+    if not layernorm:
+        # Store the updated running means back into bn_param
+        bn_param["running_mean"] = running_mean
+        bn_param["running_var"] = running_var
 
     return out, cache
 
@@ -269,7 +275,7 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, gamma, beta, mean, var, eps = cache
+    x, gamma, _, mean, var, eps = cache
     m = x.shape[0]
 
     dxhat = dout * gamma
@@ -277,7 +283,7 @@ def batchnorm_backward(dout, cache):
     dmean = -1 / np.sqrt(var + eps) * dxhat.sum(axis=0) + dvar * -2 * (
         x.mean(axis=0) - mean
     )
-    dx = dxhat / (np.sqrt(var + eps)) + dvar * 2 * (x - mean) / m + dmean / m
+    dx = dxhat / np.sqrt(var + eps) + dvar * 2 * (x - mean) / m + dmean / m
     dgamma = (dout * (x - mean) / np.sqrt(var + eps)).sum(axis=0)
     dbeta = dout.sum(axis=0)
 
@@ -314,12 +320,14 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    x, gamma, beta, mean, var, eps = cache
+    x, gamma, _, mean, var, eps = cache
     sigma = np.sqrt(var + eps)
     m = x.shape[0]
 
     dxhat = dout * gamma
-    dx = dxhat * ((1 - 1 / m) / sigma - (x - mean) ** 2 / (m * (sigma ** 3)))
+    dy = (1 - 1 / m) / sigma + (x - mean) ** 2 / m / sigma ** 3
+    dx = dxhat * dy
+    # dx = dxhat * ((1 - 1 / m) / sigma - (x - mean) ** 2 / (m * (sigma ** 3)))
     dgamma = (dout * (x - mean) / np.sqrt(var + eps)).sum(axis=0)
     dbeta = dout.sum(axis=0)
 
@@ -367,7 +375,12 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    ln_param["mode"] = "train"
+    ln_param["layernorm"] = True
+    out, cache = batchnorm_forward(
+        x.T, gamma.reshape(-1, 1), beta.reshape(-1, 1), ln_param
+    )
+    out = out.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -782,7 +795,48 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    flattened = np.moveaxis(x, 1, -1).reshape(N * H * W, C)
+    normalized, cache = batchnorm_forward(flattened, gamma, beta, bn_param)
+    out = np.moveaxis(normalized.reshape(N, H, W, C), -1, 1)
+
+    # N, C, H, W = x.shape
+
+    # mode = bn_param["mode"]
+    # eps = bn_param.get("eps", 1e-5)
+    # momentum = bn_param.get("momentum", 0.9)
+    # running_mean = bn_param.get("running_mean", np.zeros(C, dtype=x.dtype))
+    # running_var = bn_param.get("running_var", np.zeros(C, dtype=x.dtype))
+
+    # if mode == "train":
+    #     mean = x.mean(axis=(0, 2, 3))
+    #     var = x.var(axis=(0, 2, 3))
+
+    #     running_mean = momentum * running_mean + (1 - momentum) * mean
+    #     running_var = momentum * running_var + (1 - momentum) * var
+
+    #     shift = beta - gamma * mean / (np.sqrt(var + eps))
+    #     scale = gamma / np.sqrt(var + eps)
+
+    #     shift = shift[np.newaxis, :, np.newaxis, np.newaxis]
+    #     scale = scale[np.newaxis, :, np.newaxis, np.newaxis]
+
+    #     out = x * scale + shift
+
+    #     cache = (x, gamma, beta, mean, var, eps)
+
+    # elif mode == "test":
+
+    #     shift = beta - gamma * running_mean / np.sqrt(running_var + eps)
+    #     scale = gamma / np.sqrt(running_var + eps)
+
+    #     shift = shift[np.newaxis, :, np.newaxis, np.newaxis]
+    #     scale = scale[np.newaxis, :, np.newaxis, np.newaxis]
+
+    #     out = x * scale + shift
+
+    # else:
+    #     raise ValueError('Invalid forward spatial batchnorm mode "%s"' % mode)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -816,7 +870,10 @@ def spatial_batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = dout.shape
+    dflattened = np.moveaxis(dout, 1, -1).reshape(N * H * W, C)
+    dnormalized, dgamma, dbeta = batchnorm_backward(dflattened, cache)
+    dx = np.moveaxis(dnormalized.reshape(N, H, W, C), -1, 1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
