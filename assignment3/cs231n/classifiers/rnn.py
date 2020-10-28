@@ -1,5 +1,5 @@
-from builtins import range
-from builtins import object
+from builtins import object, range
+
 import numpy as np
 
 from ..layers import *
@@ -103,10 +103,10 @@ class CaptioningRNN(object):
         # after receiving word t. The first element of captions_in will be the START
         # token, and the first element of captions_out will be the first word.
         captions_in = captions[:, :-1]
-        captions_out = captions[:, 1:]
+        captions_out = captions[:, 1:]  # (N, T-1)
 
         # You'll need this
-        mask = captions_out != self._null
+        mask = captions_out != self._null  # (N, T-1)
 
         # Weight and bias for the affine transform from image features to initial
         # hidden state
@@ -151,7 +151,41 @@ class CaptioningRNN(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        cache = []
+
+        h0, c = affine_forward(features, W_proj, b_proj)
+        cache.append(c)
+        embeddings_in, c = word_embedding_forward(captions_in, W_embed)
+        cache.append(c)
+
+        if self.cell_type == "rnn":
+            h, c = rnn_forward(embeddings_in, h0, Wx, Wh, b)
+            cache.append(c)
+            scores, c = temporal_affine_forward(h, W_vocab, b_vocab)
+            cache.append(c)
+        else:
+            raise NotImplementedError
+
+        loss, d = temporal_softmax_loss(scores, captions_out, mask, verbose=False)
+
+        if self.cell_type == "rnn":
+            dh, dW_vocab, db_vocab = temporal_affine_backward(d, cache.pop())
+            grads["W_vocab"] = dW_vocab
+            grads["b_vocab"] = db_vocab
+
+            dx, dh0, dWx, dWh, db = rnn_backward(dh, cache.pop())
+            grads["Wx"] = dWx
+            grads["Wh"] = dWh
+            grads["b"] = db
+        else:
+            raise NotImplementedError
+
+        dW_embed = word_embedding_backward(dx, cache.pop())
+        grads["W_embed"] = dW_embed
+
+        _, dW_proj, db_proj = affine_backward(dh0, cache.pop())
+        grads["W_proj"] = dW_proj
+        grads["b_proj"] = db_proj
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -219,7 +253,16 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h0, _ = affine_forward(features, W_proj, b_proj)
+        x, _ = word_embedding_forward(
+            (np.ones((N, 1)) * self._start).astype(np.int64), W_embed
+        )
+        h = h0
+        for t in range(max_length):
+            h, _ = rnn_step_forward(x[:, 0, :], h, Wx, Wh, b)
+            scores, _ = affine_forward(h, W_vocab, b_vocab)
+            captions[:, t] = np.argmax(scores, axis=1)
+            x, _ = word_embedding_forward(captions[:, t].reshape(-1, 1), W_embed)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
