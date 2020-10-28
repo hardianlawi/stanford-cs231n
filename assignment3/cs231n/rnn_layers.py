@@ -306,7 +306,19 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    _, H = prev_h.shape
+
+    stack = x @ Wx + prev_h @ Wh + b
+
+    i = sigmoid(stack[:, :H])
+    f = sigmoid(stack[:, H : 2 * H])
+    o = sigmoid(stack[:, 2 * H : 3 * H])
+    g = np.tanh(stack[:, 3 * H : 4 * H])
+
+    next_c = f * prev_c + i * g
+    next_h = o * np.tanh(next_c)
+
+    cache = (x, prev_h, prev_c, Wx, Wh, i, f, o, g, next_c)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -342,7 +354,48 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, prev_h, prev_c, Wx, Wh, i, f, o, g, ct = cache
+    _, H = prev_h.shape
+
+    do = dnext_h * np.tanh(ct)  # (N, H)
+    dct = dnext_c + dnext_h * o * (1 - np.tanh(ct) ** 2)
+    dprev_c = dct * f
+    df = dct * prev_c  # (N, H)
+    di = dct * g  # (N, H)
+    dg = dct * i  # (N, H)
+
+    dWx = np.zeros_like(Wx)
+    dWh = np.zeros_like(Wh)
+    db = np.zeros(4 * H)
+
+    dWx[:, :H] = x.T @ (di * i * (1 - i))
+    dWx[:, H : 2 * H] = x.T @ (df * f * (1 - f))
+    dWx[:, 2 * H : 3 * H] = x.T @ (do * o * (1 - o))
+    dWx[:, 3 * H : 4 * H] = x.T @ (dg * (1 - g ** 2))
+
+    dWh[:, :H] = prev_h.T @ (di * i * (1 - i))
+    dWh[:, H : 2 * H] = prev_h.T @ (df * f * (1 - f))
+    dWh[:, 2 * H : 3 * H] = prev_h.T @ (do * o * (1 - o))
+    dWh[:, 3 * H : 4 * H] = prev_h.T @ (dg * (1 - g ** 2))
+
+    db[:H] = (di * i * (1 - i)).sum(axis=0)
+    db[H : 2 * H] = (df * f * (1 - f)).sum(axis=0)
+    db[2 * H : 3 * H] = (do * o * (1 - o)).sum(axis=0)
+    db[3 * H : 4 * H] = (dg * (1 - g ** 2)).sum(axis=0)
+
+    dx = (
+        (di * i * (1 - i)) @ Wx[:, :H].T
+        + (df * f * (1 - f)) @ Wx[:, H : 2 * H].T
+        + (do * o * (1 - o)) @ Wx[:, 2 * H : 3 * H].T
+        + (dg * (1 - g ** 2)) @ Wx[:, 3 * H : 4 * H].T
+    )
+
+    dprev_h = (
+        (di * i * (1 - i)) @ Wh[:, :H].T
+        + (df * f * (1 - f)) @ Wh[:, H : 2 * H].T
+        + (do * o * (1 - o)) @ Wh[:, 2 * H : 3 * H].T
+        + (dg * (1 - g ** 2)) @ Wh[:, 3 * H : 4 * H].T
+    )
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -381,7 +434,19 @@ def lstm_forward(x, h0, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, D = x.shape
+    _, H = h0.shape
+
+    cache = []
+    h = np.zeros((N, T, H))
+    ct = np.zeros((N, H))
+    ht = h0
+    for t in range(T):
+        ht, ct, c = lstm_step_forward(x[:, t, :], ht, ct, Wx, Wh, b)
+        cache.append(c)
+        h[:, t] = ht
+
+    cache.extend([N, T, H, D])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -413,7 +478,31 @@ def lstm_backward(dh, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    D = cache.pop()
+    H = cache.pop()
+    T = cache.pop()
+    N = cache.pop()
+
+    dx = np.zeros((N, T, D))
+    dWx = np.zeros((D, 4 * H))
+    dWh = np.zeros((H, 4 * H))
+    db = np.zeros(4 * H)
+
+    dprev_c = np.zeros((N, H))
+    dprev_h = np.zeros((N, H))
+    while len(cache):
+        c = cache.pop()
+        t = len(cache)
+
+        dxt, dprev_h, dprev_c, dWxt, dWht, dbt = lstm_step_backward(
+            dprev_h + dh[:, t], dprev_c, c
+        )
+
+        dx[:, t] = dxt
+        dWx += dWxt
+        dWh += dWht
+        db += dbt
+        dh0 = dprev_h
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
