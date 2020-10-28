@@ -250,15 +250,17 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        forward = rnn_forward if self.cell_type == "rnn" else lstm_forward
-
         h0, _ = affine_forward(features, W_proj, b_proj)
         x, _ = word_embedding_forward(
             (np.ones((N, 1)) * self._start).astype(np.int64), W_embed
         )
         h = h0
+        c = np.zeros((N,) + (h0.shape[1],))
         for t in range(max_length):
-            h, _ = forward(x[:, 0, :], h, Wx, Wh, b)
+            if self.cell_type == "rnn":
+                h, _ = rnn_step_forward(x[:, 0, :], h, Wx, Wh, b)
+            else:
+                h, c, _ = lstm_step_forward(x[:, 0, :], h, c, Wx, Wh, b)
             scores, _ = affine_forward(h, W_vocab, b_vocab)
             captions[:, t] = np.argmax(scores, axis=1)
             x, _ = word_embedding_forward(captions[:, t].reshape(-1, 1), W_embed)
