@@ -1,7 +1,8 @@
-from __future__ import print_function, division
-from builtins import range
-import numpy as np
+from __future__ import division, print_function
 
+from builtins import range
+
+import numpy as np
 
 """
 This file defines layer types that are commonly used for recurrent neural
@@ -36,7 +37,8 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    next_h = np.tanh(prev_h @ Wh + x @ Wx + b)
+    cache = (x, prev_h, Wx, Wh, next_h)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -69,7 +71,15 @@ def rnn_step_backward(dnext_h, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, prev_h, Wx, Wh, next_h = cache
+
+    dtanh = 1 - next_h ** 2  # (N, H)
+
+    dx = (dnext_h * dtanh) @ Wx.T
+    dprev_h = (dnext_h * dtanh) @ Wh.T
+    dWx = x.T @ (dnext_h * dtanh)
+    dWh = prev_h.T @ (dnext_h * dtanh)
+    db = (dnext_h * dtanh).sum(axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -104,7 +114,18 @@ def rnn_forward(x, h0, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, D = x.shape
+    _, H = h0.shape
+
+    h = np.zeros((N, T, H))
+    cache = []
+    ht = h0
+    for t in range(T):
+        ht, c = rnn_step_forward(x[:, t, :], ht, Wx, Wh, b)
+        h[:, t] = ht
+        cache.append(c)
+
+    cache.append(D)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -118,9 +139,9 @@ def rnn_backward(dh, cache):
     Compute the backward pass for a vanilla RNN over an entire sequence of data.
 
     Inputs:
-    - dh: Upstream gradients of all hidden states, of shape (N, T, H). 
-    
-    NOTE: 'dh' contains the upstream gradients produced by the 
+    - dh: Upstream gradients of all hidden states, of shape (N, T, H).
+
+    NOTE: 'dh' contains the upstream gradients produced by the
     individual loss functions at each timestep, *not* the gradients
     being passed between timesteps (which you'll have to compute yourself
     by calling rnn_step_backward in a loop).
@@ -140,7 +161,26 @@ def rnn_backward(dh, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, H = dh.shape
+    D = cache.pop()
+
+    dx = np.zeros((N, T, D))
+    dh0 = np.zeros((N, H))
+    dWx = np.zeros((D, H))
+    dWh = np.zeros((H, H))
+    db = np.zeros(H)
+
+    dprev_ht = np.zeros((N, H))
+    while len(cache):
+        t = len(cache) - 1
+        c = cache.pop()
+        dxt, dprev_ht, dWxt, dWht, dbt = rnn_step_backward(dprev_ht + dh[:, t], c)
+
+        dx[:, t] = dxt
+        dWx += dWxt
+        dWh += dWht
+        db += dbt
+        dh0 = dprev_ht
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -172,7 +212,14 @@ def word_embedding_forward(x, W):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T = x.shape
+    _, D = W.shape
+
+    out = np.zeros((N, T, D))
+    for t in range(T):
+        out[:, t] = W[x[:, t], :]
+
+    cache = (x,) + W.shape
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -205,7 +252,9 @@ def word_embedding_backward(dout, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, V, D = cache
+    dW = np.zeros((V, D))
+    np.add.at(dW, x, dout)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
