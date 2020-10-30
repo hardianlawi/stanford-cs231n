@@ -8,9 +8,9 @@ This repository contains my solutions for [CS231n](http://cs231n.stanford.edu/sy
 - [x] [Q2](assignment1/svm.ipynb): Training a Support Vector Machine
 - [x] [Q3](assignment1/softmax.ipynb): Implement a Softmax classifier
 - [x] [Q4](assignment1/two_layer_net.ipynb): Two-Layer Neural Network
-- [] [Q5](assignment1/features.ipynb): Higher Level Representations: Image Features
+- [ ] [Q5](assignment1/features.ipynb): Higher Level Representations: Image Features
 
-## Assignment 2
+## Assignment 2 (Tensorflow 2.3.0)
 
 - [x] [Q1](assignment2/FullyConnectedNets.ipynb): Fully-connected Neural Network
 - [x] [Q2](assignment2/BatchNormalization.ipynb): Batch Normalization
