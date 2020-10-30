@@ -1,6 +1,7 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter1d
+
 
 def compute_saliency_maps(X, y, model):
     """
@@ -35,13 +36,21 @@ def compute_saliency_maps(X, y, model):
     ###############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    X = tf.Variable(X, dtype=tf.float32)
+    y = tf.constant(y, dtype=tf.int32)
+
+    with tf.GradientTape() as tape:
+        scores = model(X)
+        loss = tf.gather_nd(scores, tf.stack((tf.range(tf.shape(y)[0]), y), axis=1))
+    dX = tape.gradient(loss, X)
+    saliency = tf.reduce_max(tf.abs(dX), axis=3).numpy()
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
     return saliency
+
 
 def make_fooling_image(X, target_y, model):
     """
@@ -69,7 +78,7 @@ def make_fooling_image(X, target_y, model):
     # the class target_y. Use gradient *ascent* on the target class score, using #
     # the model.scores Tensor to get the class scores for the model.image.   #
     # When computing an update step, first normalize the gradient:               #
-    #   dX = learning_rate * g / ||g||_2                                         #
+    #   dX = learning_rate * tape / ||tape||_2                                         #
     #                                                                            #
     # You should write a training loop, where in each iteration, you make an     #
     # update to the input image X_fooling (don't modify X). The loop should      #
@@ -84,13 +93,24 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    X_fooling = tf.Variable(X_fooling, dtype=tf.float32)
+
+    predicted_class = None
+    while predicted_class is None or predicted_class != target_y:
+        with tf.GradientTape() as tape:
+            scores = model(X_fooling)[0]
+            predicted_class = tf.argmax(scores)
+            class_score = tf.gather(scores, target_y)
+        gradients = tape.gradient(class_score, X_fooling)
+        dX = learning_rate * gradients / tf.sqrt(tf.reduce_sum(gradients ** 2))
+        X_fooling.assign_add(dX)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
     return X_fooling
+
 
 def class_visualization_update_step(X, model, target_y, l2_reg, learning_rate):
     ########################################################################
@@ -103,7 +123,13 @@ def class_visualization_update_step(X, model, target_y, l2_reg, learning_rate):
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    with tf.GradientTape() as tape:
+        tape.watch(X)
+        scores = model(X)
+        target_score = tf.gather(scores[0], target_y)
+        final_score = target_score - l2_reg * tf.norm(X)
+    g = tape.gradient(final_score, X)
+    X = X + learning_rate * g
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ############################################################################
@@ -112,10 +138,12 @@ def class_visualization_update_step(X, model, target_y, l2_reg, learning_rate):
 
     return X
 
+
 def blur_image(X, sigma=1):
     X = gaussian_filter1d(X, sigma, axis=1)
     X = gaussian_filter1d(X, sigma, axis=2)
     return X
+
 
 def jitter(X, ox, oy):
     """
